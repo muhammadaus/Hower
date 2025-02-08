@@ -1,9 +1,14 @@
 {
-  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "preserveSymlinks": true,
+    "target": "ES2020",
+    "module": "commonjs",
     "outDir": "./dist",
-    "rootDir": "."
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["*.ts"]
+  "include": ["./**/*"],
+  "exclude": ["node_modules", "dist"]
 }

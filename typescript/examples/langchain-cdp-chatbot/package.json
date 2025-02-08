@@ -5,6 +5,7 @@
   "author": "Coinbase Inc.",
   "license": "Apache-2.0",
   "scripts": {
+    "build": "tsc",
     "start": "NODE_OPTIONS='--no-warnings' ts-node ./chatbot.ts",
     "dev": "nodemon ./chatbot.ts",
     "lint": "eslint -c .eslintrc.json *.ts",
@@ -13,16 +14,15 @@
     "format:check": "prettier -c .prettierrc --check \"**/*.{ts,js,cjs,json,md}\""
   },
   "dependencies": {
-    "@coinbase/agentkit": "^0.1.0",
-    "@coinbase/agentkit-langchain": "^0.1.0",
-    "@langchain/langgraph": "^0.2.21",
-    "@langchain/openai": "^0.3.14",
+    "@langchain/community": "^0.0.28",
     "@langchain/core": "^0.3.19",
     "dotenv": "^16.4.5",
-    "zod": "^3.22.4"
+    "langchain": "^0.3.15"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "nodemon": "^3.1.0",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
   }
 }

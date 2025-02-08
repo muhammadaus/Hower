@@ -1,21 +1,6 @@
-import {
-  AgentKit,
-  CdpWalletProvider,
-  wethActionProvider,
-  walletActionProvider,
-  erc20ActionProvider,
-  cdpApiActionProvider,
-  cdpWalletActionProvider,
-  pythActionProvider,
-} from "@coinbase/agentkit";
-import { getLangChainTools } from "@coinbase/agentkit-langchain";
-import { ChatOllama } from "@langchain/community/chat_models/ollama";
-import { HumanMessage } from "@langchain/core/messages";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { AgentExecutor } from "langchain/agents";
-import { createOpenAIFunctionsAgent } from "langchain/agents";
+import { ChatOllama } from '@langchain/community/chat_models/ollama';
+import type { BaseMessageLike } from "@langchain/community/node_modules/@langchain/core/messages";
 import * as dotenv from "dotenv";
-import * as fs from "fs";
 import * as readline from "readline";
 
 dotenv.config();
@@ -55,133 +40,31 @@ function validateEnvironment(): void {
 // Add this right after imports and before any other code
 validateEnvironment();
 
-// Configure a file to persist the agent's CDP MPC Wallet Data
-const WALLET_DATA_FILE = "wallet_data.txt";
-
-/**
- * Initialize the agent with CDP Agentkit
- *
- * @returns Agent executor and config
- */
-async function initializeAgent() {
+async function initializeAgent(model = "deepseek-r1:1.5b", baseUrl = "http://localhost:11434") {
   try {
-    // Initialize LLM
     const llm = new ChatOllama({
-      model: "mistral",
-      baseUrl: "http://localhost:11434",
+      model: model,
+      baseUrl: baseUrl,
+      temperature: 0.7,
     });
 
-    let walletDataStr: string | null = null;
+    // Use tuple format: [role, content]
+    const messages: BaseMessageLike[] = [
+      ["system", "You are a helpful AI assistant"],
+      ["human", "Hello, are you working?"]
+    ];
 
-    // Read existing wallet data if available
-    if (fs.existsSync(WALLET_DATA_FILE)) {
-      try {
-        walletDataStr = fs.readFileSync(WALLET_DATA_FILE, "utf8");
-      } catch (error) {
-        console.error("Error reading wallet data:", error);
-        // Continue without wallet data
-      }
-    }
-
-    // Configure CDP Wallet Provider
-    const config = {
-      apiKeyName: process.env.CDP_API_KEY_NAME,
-      apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      cdpWalletData: walletDataStr || undefined,
-      networkId: process.env.NETWORK_ID || "base-sepolia",
-    };
-
-    const walletProvider = await CdpWalletProvider.configureWithWallet(config);
-
-    // Initialize AgentKit
-    const agentkit = await AgentKit.from({
-      walletProvider,
-      actionProviders: [
-        wethActionProvider(),
-        pythActionProvider(),
-        walletActionProvider(),
-        erc20ActionProvider(),
-        cdpApiActionProvider({
-          apiKeyName: process.env.CDP_API_KEY_NAME,
-          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-        }),
-        cdpWalletActionProvider({
-          apiKeyName: process.env.CDP_API_KEY_NAME,
-          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-        }),
-      ],
-    });
-
-    const tools = await getLangChainTools(agentkit);
-
-    const prompt = ChatPromptTemplate.fromMessages([
-      ["system", `You are a helpful agent that can interact onchain using the Coinbase Developer Platform AgentKit. You are 
-      empowered to interact onchain using your tools. If you ever need funds, you can request them from the 
-      faucet if you are on network ID 'base-sepolia'. If not, you can provide your wallet details and request 
-      funds from the user. Before executing your first action, get the wallet details to see what network 
-      you're on. If there is a 5XX (internal) HTTP error code, ask the user to try again later. If someone 
-      asks you to do something you can't do with your currently available tools, you must say so, and 
-      encourage them to implement it themselves using the CDP SDK + Agentkit, recommend they go to 
-      docs.cdp.coinbase.com for more information. Be concise and helpful with your responses.`],
-      ["human", "{input}"],
-      ["assistant", "{agent_scratchpad}"],
-    ]);
-
-    const agent = await createOpenAIFunctionsAgent({
-      llm,
-      tools,
-      prompt,
-    });
-
-    const agentExecutor = new AgentExecutor({
-      agent,
-      tools,
-    });
-
-    // Save wallet data
-    const exportedWallet = await walletProvider.exportWallet();
-    fs.writeFileSync(WALLET_DATA_FILE, JSON.stringify(exportedWallet));
-
-    return { agent: agentExecutor, config: { configurable: { thread_id: "CDP AgentKit Chatbot Example!" } } };
-  } catch (error) {
-    console.error("Failed to initialize agent:", error);
-    throw error; // Re-throw to be handled by caller
+    const response = await llm.invoke(messages);
+    console.log("Test response:", response.content);
+    console.log("Agent initialized successfully");
+    return { llm };
+  } catch (error: unknown) {
+    console.error("Failed to initialize agent:", (error as Error).message);
+    throw new Error(`Agent initialization failed: ${(error as Error).message}`);
   }
 }
 
-/**
- * Run the agent autonomously with specified intervals
- *
- * @param agent - The agent executor
- * @param config - Agent configuration
- * @param interval - Time interval between actions in seconds
- */
-async function runAutonomousMode(agent: AgentExecutor, config: any, interval = 10) {
-  console.log("Starting autonomous mode...");
-
-  while (true) {
-    try {
-      const thought = "Be creative and do something interesting on the blockchain. Choose an action or set of actions and execute it that highlights your abilities.";
-      const result = await agent.invoke({ input: thought });
-      console.log(result.output);
-      console.log("-------------------");
-      await new Promise(resolve => setTimeout(resolve, interval * 1000));
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error("Error:", error.message);
-      }
-      process.exit(1);
-    }
-  }
-}
-
-/**
- * Run the agent interactively based on user input
- *
- * @param agent - The agent executor
- * @param config - Agent configuration
- */
-async function runChatMode(agent: AgentExecutor, config: any) {
+async function runChatMode(llm: ChatOllama) {
   console.log("Starting chat mode... Type 'exit' to end.");
 
   const rl = readline.createInterface({
@@ -193,12 +76,19 @@ async function runChatMode(agent: AgentExecutor, config: any) {
     new Promise(resolve => rl.question(prompt, resolve));
 
   try {
+    // Use tuple format for messages
+    const messages: BaseMessageLike[] = [
+      ["system", "You are a helpful AI assistant"]
+    ];
+
     while (true) {
       const userInput = await question("\nPrompt: ");
       if (userInput.toLowerCase() === "exit") break;
       
-      const result = await agent.invoke({ input: userInput });
-      console.log(result.output);
+      messages.push(["human", userInput]);
+      const response = await llm.invoke(messages);
+      console.log(response.content);
+      messages.push(["assistant", response.content]);
       console.log("-------------------");
     }
   } catch (error) {
@@ -211,50 +101,10 @@ async function runChatMode(agent: AgentExecutor, config: any) {
   }
 }
 
-/**
- * Choose whether to run in autonomous or chat mode based on user input
- *
- * @returns Selected mode
- */
-async function chooseMode(): Promise<"chat" | "auto"> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  const question = (prompt: string): Promise<string> =>
-    new Promise(resolve => rl.question(prompt, resolve));
-
-  while (true) {
-    console.log("\nAvailable modes:");
-    console.log("1. chat    - Interactive chat mode");
-    console.log("2. auto    - Autonomous action mode");
-
-    const choice = (await question("\nChoose a mode (enter number or name): ")).toLowerCase().trim();
-    if (choice === "1" || choice === "chat") {
-      rl.close();
-      return "chat";
-    } else if (choice === "2" || choice === "auto") {
-      rl.close();
-      return "auto";
-    }
-    console.log("Invalid choice. Please try again.");
-  }
-}
-
-/**
- * Start the chatbot agent
- */
 async function main() {
   try {
-    const { agent, config } = await initializeAgent();
-    const mode = await chooseMode();
-
-    if (mode === "chat") {
-      await runChatMode(agent, config);
-    } else {
-      await runAutonomousMode(agent, config);
-    }
+    const { llm } = await initializeAgent();
+    await runChatMode(llm);
   } catch (error) {
     if (error instanceof Error) {
       console.error("Error:", error.message);
@@ -264,7 +114,7 @@ async function main() {
 }
 
 if (require.main === module) {
-  console.log("Starting Agent...");
+  console.log("Starting Chat...");
   main().catch(error => {
     console.error("Fatal error:", error);
     process.exit(1);
