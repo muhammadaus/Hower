@@ -53,5 +53,12 @@
     "turbo": "^2.3.3",
     "typedoc": "^0.27.2",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@coinbase/agentkit": "^0.1.2",
+    "@coinbase/agentkit-langchain": "^0.1.0",
+    "@langchain/community": "^0.3.29",
+    "@langchain/core": "^0.3.39",
+    "langchain": "^0.3.15"
   }
 }
