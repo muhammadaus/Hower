@@ -10,17 +10,17 @@ exports.id = "vendor-chunks/mime-db";
 exports.ids = ["vendor-chunks/mime-db"];
 exports.modules = {
 
-/***/ "(rsc)/../../../node_modules/mime-db/index.js":
+/***/ "(ssr)/../../../node_modules/mime-db/index.js":
 /*!**********************************************!*\
   !*** ../../../node_modules/mime-db/index.js ***!
   \**********************************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-eval("/*!\n * mime-db\n * Copyright(c) 2014 Jonathan Ong\n * Copyright(c) 2015-2022 Douglas Christopher Wilson\n * MIT Licensed\n */\n\n/**\n * Module exports.\n */\n\nmodule.exports = __webpack_require__(/*! ./db.json */ \"(rsc)/../../../node_modules/mime-db/db.json\")\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi4vLi4vLi4vbm9kZV9tb2R1bGVzL21pbWUtZGIvaW5kZXguanMiLCJtYXBwaW5ncyI6IkFBQUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQUVBO0FBQ0E7QUFDQTs7QUFFQSxvR0FBcUMiLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly9AY29pbmJhc2UvY2RwLWxhbmdjaGFpbi1jaGF0Ym90LWV4YW1wbGUvLi4vLi4vLi4vbm9kZV9tb2R1bGVzL21pbWUtZGIvaW5kZXguanM/MjliZCJdLCJzb3VyY2VzQ29udGVudCI6WyIvKiFcbiAqIG1pbWUtZGJcbiAqIENvcHlyaWdodChjKSAyMDE0IEpvbmF0aGFuIE9uZ1xuICogQ29weXJpZ2h0KGMpIDIwMTUtMjAyMiBEb3VnbGFzIENocmlzdG9waGVyIFdpbHNvblxuICogTUlUIExpY2Vuc2VkXG4gKi9cblxuLyoqXG4gKiBNb2R1bGUgZXhwb3J0cy5cbiAqL1xuXG5tb2R1bGUuZXhwb3J0cyA9IHJlcXVpcmUoJy4vZGIuanNvbicpXG4iXSwibmFtZXMiOltdLCJzb3VyY2VSb290IjoiIn0=\n//# sourceURL=webpack-internal:///(rsc)/../../../node_modules/mime-db/index.js\n");
+eval("/*!\n * mime-db\n * Copyright(c) 2014 Jonathan Ong\n * Copyright(c) 2015-2022 Douglas Christopher Wilson\n * MIT Licensed\n */\n\n/**\n * Module exports.\n */\n\nmodule.exports = __webpack_require__(/*! ./db.json */ \"(ssr)/../../../node_modules/mime-db/db.json\")\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHNzcikvLi4vLi4vLi4vbm9kZV9tb2R1bGVzL21pbWUtZGIvaW5kZXguanMiLCJtYXBwaW5ncyI6IkFBQUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQUVBO0FBQ0E7QUFDQTs7QUFFQSxvR0FBcUMiLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly9AY29pbmJhc2UvY2RwLWxhbmdjaGFpbi1jaGF0Ym90LWV4YW1wbGUvLi4vLi4vLi4vbm9kZV9tb2R1bGVzL21pbWUtZGIvaW5kZXguanM/NzExZSJdLCJzb3VyY2VzQ29udGVudCI6WyIvKiFcbiAqIG1pbWUtZGJcbiAqIENvcHlyaWdodChjKSAyMDE0IEpvbmF0aGFuIE9uZ1xuICogQ29weXJpZ2h0KGMpIDIwMTUtMjAyMiBEb3VnbGFzIENocmlzdG9waGVyIFdpbHNvblxuICogTUlUIExpY2Vuc2VkXG4gKi9cblxuLyoqXG4gKiBNb2R1bGUgZXhwb3J0cy5cbiAqL1xuXG5tb2R1bGUuZXhwb3J0cyA9IHJlcXVpcmUoJy4vZGIuanNvbicpXG4iXSwibmFtZXMiOltdLCJzb3VyY2VSb290IjoiIn0=\n//# sourceURL=webpack-internal:///(ssr)/../../../node_modules/mime-db/index.js\n");
 
 /***/ }),
 
-/***/ "(rsc)/../../../node_modules/mime-db/db.json":
+/***/ "(ssr)/../../../node_modules/mime-db/db.json":
 /*!*********************************************!*\
   !*** ../../../node_modules/mime-db/db.json ***!
   \*********************************************/

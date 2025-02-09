@@ -1,7 +1,3 @@
-import { ChatOllama } from '@langchain/community/chat_models/ollama';
-import { BaseMessage, SystemMessage, HumanMessage } from "@langchain/core/messages";
-import { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { StructuredToolInterface } from "@langchain/core/tools";
 import {
   AgentKit,
   CdpWalletProvider,
@@ -13,17 +9,15 @@ import {
   pythActionProvider,
 } from "@coinbase/agentkit";
 import { getLangChainTools } from "@coinbase/agentkit-langchain";
+import { HumanMessage } from "@langchain/core/messages";
 import { MemorySaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import type { BaseMessageLike } from "@langchain/community/node_modules/@langchain/core/messages";
+import { ChatOpenAI } from "@langchain/openai";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as readline from "readline";
 
 dotenv.config();
-
-// Add constant for wallet data file
-const WALLET_DATA_FILE = "wallet_data.txt";
 
 /**
  * Validates that required environment variables are set
@@ -32,170 +26,171 @@ const WALLET_DATA_FILE = "wallet_data.txt";
  * @returns {void}
  */
 function validateEnvironment(): void {
-  // No required variables - CDP features are optional
-  console.log("Using Ollama at http://localhost:11434");
-  
-  if (process.env.CDP_API_KEY_NAME && process.env.CDP_API_KEY_PRIVATE_KEY) {
-    console.log("CDP features enabled");
-  } else {
-    console.log("CDP features disabled - set CDP_API_KEY_NAME and CDP_API_KEY_PRIVATE_KEY to enable");
+  const missingVars: string[] = [];
+
+  // Check required variables
+  const requiredVars = ["GOOGLE_API_KEY", "CDP_API_KEY_NAME", "CDP_API_KEY_PRIVATE_KEY"];
+  requiredVars.forEach(varName => {
+    if (!process.env[varName]) {
+      missingVars.push(varName);
+    }
+  });
+
+  // Exit if any required variables are missing
+  if (missingVars.length > 0) {
+    console.error("Error: Required environment variables are not set");
+    missingVars.forEach(varName => {
+      console.error(`${varName}=your_${varName.toLowerCase()}_here`);
+    });
+    process.exit(1);
+  }
+
+  // Warn about optional NETWORK_ID
+  if (!process.env.NETWORK_ID) {
+    console.warn("Warning: NETWORK_ID not set, defaulting to base-sepolia testnet");
   }
 }
 
 // Add this right after imports and before any other code
 validateEnvironment();
 
-async function initializeAgent(model = "deepseek-r1:8b", baseUrl = "http://localhost:11434") {
+// Configure a file to persist the agent's CDP MPC Wallet Data
+const WALLET_DATA_FILE = "wallet_data.txt";
+
+/**
+ * Initialize the agent with CDP Agentkit
+ *
+ * @returns Agent executor and config
+ */
+async function initializeAgent() {
   try {
-    // Initialize Ollama LLM with bindTools method
-    const ollamaLLM = new ChatOllama({
-      model: model,
-      baseUrl: baseUrl,
-      temperature: 0.7,
+    // Initialize LLM
+    const llm = new ChatOpenAI({
+      model: "gemini-1.5-flash",
     });
 
-    // Add bindTools method to make it compatible with createReactAgent
-    const llmWithTools = Object.assign(ollamaLLM, {
-      bindTools(tools: any[]) {
-        return {
-          ...ollamaLLM,
-          invoke: async (messages: any[], options?: any) => {
-            return ollamaLLM.invoke(messages, options);
-          }
-        };
-      }
-    });
+    let walletDataStr: string | null = null;
 
-    let tools: StructuredToolInterface[] = [];
-    let walletProvider = null;
-
-    // Only initialize CDP features if environment variables are present
-    if (process.env.CDP_API_KEY_NAME && process.env.CDP_API_KEY_PRIVATE_KEY) {
-      console.log("Attempting to initialize CDP features...");
+    // Read existing wallet data if available
+    if (fs.existsSync(WALLET_DATA_FILE)) {
       try {
-        // Format private key properly
-        const rawKey = process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n");
-        const keyParts = rawKey.split("\n");
-        let formattedKey = "";
-        
-        if (keyParts.length === 3) {
-          // Key is not properly formatted, let's format it
-          const keyContent = keyParts[1];
-          const chunks = keyContent.match(/.{1,64}/g) || [];
-          formattedKey = [
-            "-----BEGIN PRIVATE KEY-----",
-            ...chunks,
-            "-----END PRIVATE KEY-----"
-          ].join("\n");
-        } else {
-          formattedKey = rawKey;
-        }
-
-        console.log("Private key format check:", {
-          hasBeginMarker: formattedKey.includes("-----BEGIN PRIVATE KEY-----"),
-          hasEndMarker: formattedKey.includes("-----END PRIVATE KEY-----"),
-          hasLineBreaks: formattedKey.includes("\n"),
-          totalLines: formattedKey.split("\n").length,
-          averageLineLength: Math.floor(formattedKey.split("\n").reduce((sum, line) => sum + line.length, 0) / formattedKey.split("\n").length)
-        });
-
-        const config = {
-          apiKeyName: process.env.CDP_API_KEY_NAME,
-          apiKeyPrivateKey: formattedKey,
-          networkId: process.env.NETWORK_ID || "base-sepolia",
-        };
-
-        // Log config (safely)
-        console.log("CDP Config:", {
-          apiKeyName: config.apiKeyName,
-          networkId: config.networkId,
-          privateKeyLength: config.apiKeyPrivateKey?.length || 0,
-          // First few chars of private key to verify format
-          privateKeyStart: config.apiKeyPrivateKey?.substring(0, 20) + "..."
-        });
-
-        try {
-          walletProvider = await CdpWalletProvider.configureWithWallet(config);
-        } catch (walletError: any) {
-          // Log detailed wallet error
-          console.error("Wallet initialization error:", {
-            error: walletError,
-            name: walletError.name,
-            message: walletError.message,
-            details: walletError.details,
-            response: walletError.response,
-            stack: walletError.stack
-          });
-          throw walletError;
-        }
-        
-        // Only set up CDP tools if wallet initialization succeeded
-        const agentkit = await AgentKit.from({
-          walletProvider,
-          actionProviders: [
-            wethActionProvider(),
-            pythActionProvider(),
-            walletActionProvider(),
-            erc20ActionProvider(),
-            cdpApiActionProvider(config),
-            cdpWalletActionProvider(config),
-          ],
-        });
-
-        tools = await getLangChainTools(agentkit);
-        console.log("CDP features initialized successfully");
-        console.log("Available tools:", tools.map(tool => ({
-          name: tool.name,
-          description: tool.description
-        })));
+        walletDataStr = fs.readFileSync(WALLET_DATA_FILE, "utf8");
       } catch (error) {
-        // Type the error properly
-        const cdpError = error as Error;
-        console.warn("CDP initialization failed, continuing without CDP features:", cdpError.message);
+        console.error("Error reading wallet data:", error);
+        // Continue without wallet data
       }
     }
 
-    // Store buffered conversation history
-    const memory = new MemorySaver();
-    const agentConfig = { configurable: { thread_id: "Ollama Chatbot" } };
+    // Configure CDP Wallet Provider
+    const config = {
+      apiKeyName: process.env.CDP_API_KEY_NAME,
+      apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      cdpWalletData: walletDataStr || undefined,
+      networkId: process.env.NETWORK_ID || "base-sepolia",
+    };
 
-    // Create React Agent using enhanced Ollama LLM
-    const agent = createReactAgent({
-      llm: llmWithTools as unknown as BaseChatModel,
-      tools,
-      checkpointSaver: memory,
-      messageModifier: walletProvider 
-        ? `You are a helpful agent that can interact onchain using the Coinbase Developer Platform AgentKit.
-           
-           Available actions:
-           1. Wallet Operations:
-              - Use 'get_wallet_details' to check wallet address and network
-              - Use 'get_balance' to check ETH balance
-              - Use 'request_testnet_funds' to get funds from faucet
-           
-           2. Token Operations:
-              - Use 'get_weth_balance' to check WETH balance
-              - Use 'wrap_eth' to wrap ETH to WETH
-              - Use 'unwrap_weth' to unwrap WETH to ETH
-              - Use 'transfer_erc20' for token transfers
-           
-           3. Price Information:
-              - Use 'get_pyth_price' for price feeds
-           
-           Always start by using 'get_wallet_details' to confirm the network and address.
-           For each action, use the exact tool name shown above.
-           
-           Example: When asked about balance, use the 'get_balance' tool.`
-        : `You are a helpful AI assistant. You can engage in conversations and help with various tasks.`,
+    const walletProvider = await CdpWalletProvider.configureWithWallet(config);
+
+    // Initialize AgentKit
+    const agentkit = await AgentKit.from({
+      walletProvider,
+      actionProviders: [
+        wethActionProvider(),
+        pythActionProvider(),
+        walletActionProvider(),
+        erc20ActionProvider(),
+        cdpApiActionProvider({
+          apiKeyName: process.env.CDP_API_KEY_NAME,
+          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        }),
+        cdpWalletActionProvider({
+          apiKeyName: process.env.CDP_API_KEY_NAME,
+          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        }),
+      ],
     });
 
-    return { agent, config: agentConfig, ollamaLLM };
+    const tools = await getLangChainTools(agentkit);
+
+    // Store buffered conversation history in memory
+    const memory = new MemorySaver();
+    const agentConfig = { configurable: { thread_id: "CDP AgentKit Chatbot Example!" } };
+
+    // Create React Agent using the LLM and CDP AgentKit tools
+    const agent = createReactAgent({
+      llm,
+      tools,
+      checkpointSaver: memory,
+      messageModifier: `
+        You are a helpful agent that can interact onchain using the Coinbase Developer Platform AgentKit. You are 
+        empowered to interact onchain using your tools. If you ever need funds, you can request them from the 
+        faucet if you are on network ID 'base-sepolia'. If not, you can provide your wallet details and request 
+        funds from the user. Before executing your first action, get the wallet details to see what network 
+        you're on. If there is a 5XX (internal) HTTP error code, ask the user to try again later. If someone 
+        asks you to do something you can't do with your currently available tools, you must say so, and 
+        encourage them to implement it themselves using the CDP SDK + Agentkit, recommend they go to 
+        docs.cdp.coinbase.com for more information. Be concise and helpful with your responses. Refrain from 
+        restating your tools' descriptions unless it is explicitly requested.
+        `,
+    });
+
+    // Save wallet data
+    const exportedWallet = await walletProvider.exportWallet();
+    fs.writeFileSync(WALLET_DATA_FILE, JSON.stringify(exportedWallet));
+
+    return { agent, config: agentConfig };
   } catch (error) {
     console.error("Failed to initialize agent:", error);
-    throw error;
+    throw error; // Re-throw to be handled by caller
   }
 }
 
+/**
+ * Run the agent autonomously with specified intervals
+ *
+ * @param agent - The agent executor
+ * @param config - Agent configuration
+ * @param interval - Time interval between actions in seconds
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function runAutonomousMode(agent: any, config: any, interval = 10) {
+  console.log("Starting autonomous mode...");
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      const thought =
+        "Be creative and do something interesting on the blockchain. " +
+        "Choose an action or set of actions and execute it that highlights your abilities.";
+
+      const stream = await agent.stream({ messages: [new HumanMessage(thought)] }, config);
+
+      for await (const chunk of stream) {
+        if ("agent" in chunk) {
+          console.log(chunk.agent.messages[0].content);
+        } else if ("tools" in chunk) {
+          console.log(chunk.tools.messages[0].content);
+        }
+        console.log("-------------------");
+      }
+
+      await new Promise(resolve => setTimeout(resolve, interval * 1000));
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error:", error.message);
+      }
+      process.exit(1);
+    }
+  }
+}
+
+/**
+ * Run the agent interactively based on user input
+ *
+ * @param agent - The agent executor
+ * @param config - Agent configuration
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function runChatMode(agent: any, config: any) {
   console.log("Starting chat mode... Type 'exit' to end.");
 
@@ -208,10 +203,14 @@ async function runChatMode(agent: any, config: any) {
     new Promise(resolve => rl.question(prompt, resolve));
 
   try {
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const userInput = await question("\nPrompt: ");
-      if (userInput.toLowerCase() === "exit") break;
-      
+
+      if (userInput.toLowerCase() === "exit") {
+        break;
+      }
+
       const stream = await agent.stream({ messages: [new HumanMessage(userInput)] }, config);
 
       for await (const chunk of stream) {
@@ -233,10 +232,54 @@ async function runChatMode(agent: any, config: any) {
   }
 }
 
+/**
+ * Choose whether to run in autonomous or chat mode based on user input
+ *
+ * @returns Selected mode
+ */
+async function chooseMode(): Promise<"chat" | "auto"> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const question = (prompt: string): Promise<string> =>
+    new Promise(resolve => rl.question(prompt, resolve));
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    console.log("\nAvailable modes:");
+    console.log("1. chat    - Interactive chat mode");
+    console.log("2. auto    - Autonomous action mode");
+
+    const choice = (await question("\nChoose a mode (enter number or name): "))
+      .toLowerCase()
+      .trim();
+
+    if (choice === "1" || choice === "chat") {
+      rl.close();
+      return "chat";
+    } else if (choice === "2" || choice === "auto") {
+      rl.close();
+      return "auto";
+    }
+    console.log("Invalid choice. Please try again.");
+  }
+}
+
+/**
+ * Start the chatbot agent
+ */
 async function main() {
   try {
-    const { agent, config, ollamaLLM } = await initializeAgent();
-    await runChatMode(agent, config);
+    const { agent, config } = await initializeAgent();
+    const mode = await chooseMode();
+
+    if (mode === "chat") {
+      await runChatMode(agent, config);
+    } else {
+      await runAutonomousMode(agent, config);
+    }
   } catch (error) {
     if (error instanceof Error) {
       console.error("Error:", error.message);
@@ -246,7 +289,7 @@ async function main() {
 }
 
 if (require.main === module) {
-  console.log("Starting Chat...");
+  console.log("Starting Agent...");
   main().catch(error => {
     console.error("Fatal error:", error);
     process.exit(1);

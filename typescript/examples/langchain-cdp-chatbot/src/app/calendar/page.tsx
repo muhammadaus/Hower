@@ -1,58 +1,48 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Calendar } from '@/components/Calendar';
+import dynamic from 'next/dynamic';
 import { TimeBlock } from '@/types';
+import { useState, useEffect } from 'react';
+import { StorageService } from '@/lib/storage';
+
+// Dynamically import Calendar with no SSR
+const Calendar = dynamic(
+  () => import('@/components/Calendar').then((mod) => mod.Calendar),
+  { ssr: false }
+);
 
 export default function CalendarPage() {
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
-  const [hourlyRate, setHourlyRate] = useState<number>(100);
 
   useEffect(() => {
-    // Load saved time blocks from localStorage
-    const savedBlocks = localStorage.getItem('timeBlocks');
-    const savedRate = localStorage.getItem('hourlyRate');
-    
-    if (savedBlocks) {
-      setTimeBlocks(JSON.parse(savedBlocks));
-    }
-    if (savedRate) {
-      setHourlyRate(Number(savedRate));
-    }
+    const storage = StorageService.getInstance();
+    const blocks = storage.getTimeBlocks();
+    console.log('CalendarPage: Initial blocks:', blocks);
+    setTimeBlocks(blocks);
   }, []);
 
-  const handleSavePresets = () => {
-    localStorage.setItem('timeBlocks', JSON.stringify(timeBlocks));
-    localStorage.setItem('hourlyRate', String(hourlyRate));
+  const debugState = () => {
+    console.log('CalendarPage Debug:');
+    console.log('Current blocks:', timeBlocks);
+    const storage = StorageService.getInstance();
+    console.log('Storage blocks:', storage.getTimeBlocks());
   };
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Calendar Presets</h1>
-      
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-2">
-          Hourly Rate (USD)
-          <input
-            type="number"
-            value={hourlyRate}
-            onChange={(e) => setHourlyRate(Number(e.target.value))}
-            className="ml-2 p-1 border rounded"
-          />
-        </label>
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Calendar</h1>
+        <button 
+          onClick={debugState}
+          className="bg-gray-200 px-3 py-1 rounded"
+        >
+          Debug State
+        </button>
       </div>
-
-      <Calendar
-        timeBlocks={timeBlocks}
-        onBlocksChange={setTimeBlocks}
+      <Calendar 
+        timeBlocks={timeBlocks} 
+        onBlocksChange={setTimeBlocks} 
       />
-
-      <button
-        onClick={handleSavePresets}
-        className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
-      >
-        Save Presets
-      </button>
     </div>
   );
 } 

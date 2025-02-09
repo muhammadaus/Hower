@@ -1,40 +1,41 @@
 'use client';
 
-import { ChatMessage } from '@/components/ChatMessage';
-import { ChatInput } from '@/components/ChatInput';
-import { useChatbot } from '@/hooks/useChatbot';
-import { useRef, useEffect } from 'react';
+import { useState } from 'react';
+import Chat from '@/components/Chat';
+import Calendar from '@/components/Calendar';
+import DataStorage from '@/components/DataStorage';
 
 export default function Home() {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, isLoading, error, sendMessage } = useChatbot();
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const [activeTab, setActiveTab] = useState<'chat' | 'calendar' | 'storage'>('chat');
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
-      <header className="bg-blue-500 text-white p-4">
-        <h1 className="text-xl font-bold">CDP Chatbot</h1>
-      </header>
+    <main className="flex min-h-screen flex-col">
+      <div className="flex border-b">
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`px-4 py-2 ${activeTab === 'chat' ? 'border-b-2 border-blue-500' : ''}`}
+        >
+          Chat
+        </button>
+        <button
+          onClick={() => setActiveTab('calendar')}
+          className={`px-4 py-2 ${activeTab === 'calendar' ? 'border-b-2 border-blue-500' : ''}`}
+        >
+          Calendar
+        </button>
+        <button
+          onClick={() => setActiveTab('storage')}
+          className={`px-4 py-2 ${activeTab === 'storage' ? 'border-b-2 border-blue-500' : ''}`}
+        >
+          Data Storage
+        </button>
+      </div>
 
-      <main className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-3xl mx-auto">
-          {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
-          ))}
-          <div ref={messagesEndRef} />
-          
-          {error && (
-            <div className="text-red-500 text-center p-2">
-              {error}
-            </div>
-          )}
-        </div>
-      </main>
-
-      <ChatInput onSendMessage={sendMessage} isLoading={isLoading} />
-    </div>
+      <div className="flex-1">
+        {activeTab === 'chat' && <Chat />}
+        {activeTab === 'calendar' && <Calendar />}
+        {activeTab === 'storage' && <DataStorage />}
+      </div>
+    </main>
   );
 } 
