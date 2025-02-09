@@ -5,23 +5,36 @@
   "author": "Coinbase Inc.",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "tsc",
-    "start": "NODE_OPTIONS='--no-warnings' ts-node ./chatbot.ts",
-    "dev": "nodemon ./chatbot.ts",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "lint": "eslint -c .eslintrc.json *.ts",
-    "lint:fix": "eslint -c .eslintrc.json *.ts --fix",
+    "lint:fix": "next lint --fix",
     "format": "prettier --write \"**/*.{ts,js,cjs,json,md}\"",
     "format:check": "prettier -c .prettierrc --check \"**/*.{ts,js,cjs,json,md}\""
   },
   "dependencies": {
+    "@coinbase/agentkit": "file:../../agentkit",
+    "@coinbase/agentkit-langchain": "file:../../framework-extensions/langchain",
     "@langchain/community": "^0.0.28",
     "@langchain/core": "^0.3.19",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "next": "^14.1.0",
     "dotenv": "^16.4.5",
-    "langchain": "^0.3.15"
+    "langchain": "^0.3.15",
+    "uuid": "^9.0.1",
+    "date-fns": "^3.3.1",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "autoprefixer": "^10.4.17",
     "nodemon": "^3.1.0",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0"
   }
