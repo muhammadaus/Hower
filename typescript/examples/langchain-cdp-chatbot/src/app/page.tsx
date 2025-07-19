@@ -1,41 +1,71 @@
 'use client';
 
 import { useState } from 'react';
+import { MessageCircle, Calendar as CalendarIcon, Database } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import Chat from '@/components/Chat';
 import Calendar from '@/components/Calendar';
 import DataStorage from '@/components/DataStorage';
+import { Card } from '@/components/ui/card';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'calendar' | 'storage'>('chat');
 
-  return (
-    <main className="flex min-h-screen flex-col">
-      <div className="flex border-b">
-        <button
-          onClick={() => setActiveTab('chat')}
-          className={`px-4 py-2 ${activeTab === 'chat' ? 'border-b-2 border-blue-500' : ''}`}
-        >
-          Chat
-        </button>
-        <button
-          onClick={() => setActiveTab('calendar')}
-          className={`px-4 py-2 ${activeTab === 'calendar' ? 'border-b-2 border-blue-500' : ''}`}
-        >
-          Calendar
-        </button>
-        <button
-          onClick={() => setActiveTab('storage')}
-          className={`px-4 py-2 ${activeTab === 'storage' ? 'border-b-2 border-blue-500' : ''}`}
-        >
-          Data Storage
-        </button>
-      </div>
+  const tabs = [
+    {
+      id: 'chat',
+      label: 'Chat',
+      icon: MessageCircle,
+      component: Chat
+    },
+    {
+      id: 'calendar',
+      label: 'Calendar',
+      icon: CalendarIcon,
+      component: Calendar
+    },
+    {
+      id: 'storage',
+      label: 'Data Storage',
+      icon: Database,
+      component: DataStorage
+    }
+  ] as const;
 
-      <div className="flex-1">
-        {activeTab === 'chat' && <Chat />}
-        {activeTab === 'calendar' && <Calendar />}
-        {activeTab === 'storage' && <DataStorage />}
+  return (
+    <main className="flex min-h-screen flex-col bg-gray-50">
+      <div className="container mx-auto px-4 py-6">
+        <Card className="shadow-lg">
+          <div className="flex border-b bg-white rounded-t-lg">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors',
+                    'hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset',
+                    activeTab === tab.id
+                      ? 'border-b-2 border-blue-500 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-6 bg-white rounded-b-lg min-h-[600px]">
+            {tabs.map((tab) => {
+              const Component = tab.component;
+              return activeTab === tab.id && <Component key={tab.id} />;
+            })}
+          </div>
+        </Card>
       </div>
     </main>
   );
-} 
+}
